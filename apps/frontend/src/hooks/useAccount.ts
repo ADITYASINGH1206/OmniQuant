@@ -7,10 +7,21 @@ export interface Position {
   avgPrice: number;
 }
 
+export interface OrderLog {
+  id: string;
+  timestamp: number;
+  symbol: string;
+  action: 'BUY' | 'SELL';
+  quantity: number;
+  price: number;
+  status: 'FILLED' | 'REJECTED';
+}
+
 export interface AccountState {
   cash_balance: number;
   realized_pnl: number;
   positions: Record<string, Position>;
+  order_history: OrderLog[];
 }
 
 export const useAccount = () => {

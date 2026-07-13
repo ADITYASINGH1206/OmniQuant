@@ -3,14 +3,17 @@ import { Link } from "react-router-dom";
 import { TradingChart } from "../TradingChart";
 import { PaperTrading } from "../PaperTrading";
 import { useAccount } from "../hooks/useAccount";
+import { useMultiMarketStream } from "../hooks/useMultiMarketStream";
 import { TICKER_REGISTRY } from "../lib/tickerRegistry";
 
 export const Terminal: React.FC = () => {
   const { account, refreshAccount } = useAccount();
   const [activeTicker, setActiveTicker] = useState<string>("BTC/USDT");
   const [activeTimeframe, setActiveTimeframe] = useState<string>("15m");
+  const [ledgerTab, setLedgerTab] = useState<'POSITIONS' | 'HISTORY'>('POSITIONS');
+  const { latestCandle } = useMultiMarketStream(activeTicker, activeTimeframe);
 
-  const markPrice = 42912.44; // Dummy mark price for calculations
+  const markPrice = latestCandle?.close || 0;
 
   return (
     <div className="bg-surface text-on-surface h-screen w-screen overflow-hidden">
@@ -131,67 +134,112 @@ export const Terminal: React.FC = () => {
               </div>
             </div>
             <div className="relative z-10 w-full h-full flex flex-col p-2">
-              <TradingChart activeTicker={activeTicker} activeTimeframe={activeTimeframe} />
+              <TradingChart activeTicker={activeTicker} activeTimeframe={activeTimeframe} latestCandle={latestCandle} />
             </div>
           </div>
           
           {/* Bottom Ledger (Positions Table) */}
           <div className="h-64 border-t border-outline-variant bg-surface-container flex flex-col">
             <div className="flex items-center px-gutter h-8 border-b border-outline-variant bg-surface-container-high">
-              <button className="px-3 h-full font-label-caps text-label-caps text-secondary border-b-2 border-secondary bg-surface-variant transition-colors">
+              <button 
+                onClick={() => setLedgerTab('POSITIONS')}
+                className={`px-3 h-full font-label-caps text-label-caps transition-colors ${ledgerTab === 'POSITIONS' ? 'text-secondary border-b-2 border-secondary bg-surface-variant' : 'text-on-surface-variant hover:text-on-surface'}`}
+              >
                 OPEN POSITIONS ({account ? Object.keys(account.positions).length : 0})
               </button>
-              <button className="px-3 h-full font-label-caps text-label-caps text-on-surface-variant hover:text-on-surface transition-colors">ORDER HISTORY</button>
-              <button className="px-3 h-full font-label-caps text-label-caps text-on-surface-variant hover:text-on-surface transition-colors">TRADE LOGS</button>
+              <button 
+                onClick={() => setLedgerTab('HISTORY')}
+                className={`px-3 h-full font-label-caps text-label-caps transition-colors ${ledgerTab === 'HISTORY' ? 'text-secondary border-b-2 border-secondary bg-surface-variant' : 'text-on-surface-variant hover:text-on-surface'}`}
+              >
+                ORDER HISTORY
+              </button>
+              <button 
+                onClick={() => setLedgerTab('HISTORY')}
+                className={`px-3 h-full font-label-caps text-label-caps transition-colors ${ledgerTab === 'HISTORY' ? 'text-secondary border-b-2 border-secondary bg-surface-variant' : 'text-on-surface-variant hover:text-on-surface'}`}
+              >
+                TRADE LOGS
+              </button>
               <div className="ml-auto flex items-center gap-2">
                 <span className="material-symbols-outlined text-[16px] text-on-surface-variant cursor-pointer">filter_list</span>
                 <span className="material-symbols-outlined text-[16px] text-on-surface-variant cursor-pointer">close_fullscreen</span>
               </div>
             </div>
             <div className="flex-1 overflow-auto custom-scrollbar">
-              <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 bg-surface-container-high z-10">
-                  <tr className="font-label-caps text-label-caps text-on-surface-variant border-b border-outline-variant">
-                    <th className="py-2 px-3 font-medium">SYMBOL</th>
-                    <th className="py-2 px-3 font-medium">TYPE</th>
-                    <th className="py-2 px-3 font-medium">SIZE</th>
-                    <th className="py-2 px-3 font-medium">ENTRY PRICE</th>
-                    <th className="py-2 px-3 font-medium">MARK PRICE</th>
-                    <th className="py-2 px-3 font-medium text-right">UNREALIZED PNL</th>
-                  </tr>
-                </thead>
-                <tbody className="font-data-mono-sm text-data-mono-sm">
-                  {account && Object.values(account.positions).map((pos, i) => {
-                    const pnl = (markPrice - pos.avgPrice) * pos.qty;
-                    const pnlPct = (pnl / (pos.avgPrice * pos.qty)) * 100;
-                    const pnlColor = pnl >= 0 ? 'text-secondary' : 'text-on-tertiary-container';
-                    return (
-                      <tr key={i} className="border-b border-outline-variant/30 hover:bg-surface-bright transition-colors">
-                        <td className="py-cell-padding-y px-3 text-on-surface">{pos.symbol}</td>
-                        <td className="py-cell-padding-y px-3 text-secondary">MARKET</td>
-                        <td className="py-cell-padding-y px-3">{pos.qty.toFixed(4)}</td>
-                        <td className="py-cell-padding-y px-3">{pos.avgPrice.toFixed(2)}</td>
-                        <td className="py-cell-padding-y px-3">{markPrice.toFixed(2)}</td>
-                        <td className={`py-cell-padding-y px-3 text-right ${pnlColor}`}>
-                          {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)} ({pnl >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%)
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {(!account || Object.keys(account.positions).length === 0) && (
-                    <tr>
-                      <td colSpan={6} className="text-center py-8 text-on-surface-variant">No Open Positions</td>
+              {ledgerTab === 'POSITIONS' ? (
+                <table className="w-full text-left border-collapse">
+                  <thead className="sticky top-0 bg-surface-container-high z-10">
+                    <tr className="font-label-caps text-label-caps text-on-surface-variant border-b border-outline-variant">
+                      <th className="py-2 px-3 font-medium">SYMBOL</th>
+                      <th className="py-2 px-3 font-medium">TYPE</th>
+                      <th className="py-2 px-3 font-medium">SIZE</th>
+                      <th className="py-2 px-3 font-medium">ENTRY PRICE</th>
+                      <th className="py-2 px-3 font-medium">MARK PRICE</th>
+                      <th className="py-2 px-3 font-medium text-right">UNREALIZED PNL</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="font-data-mono-sm text-data-mono-sm">
+                    {account && Object.values(account.positions).map((pos, i) => {
+                      const pnl = (markPrice - pos.avgPrice) * pos.qty;
+                      const pnlPct = (pnl / (pos.avgPrice * pos.qty)) * 100;
+                      const pnlColor = pnl >= 0 ? 'text-secondary' : 'text-on-tertiary-container';
+                      return (
+                        <tr key={i} className="border-b border-outline-variant/30 hover:bg-surface-bright transition-colors">
+                          <td className="py-cell-padding-y px-3 text-on-surface">{pos.symbol}</td>
+                          <td className="py-cell-padding-y px-3 text-secondary">MARKET</td>
+                          <td className="py-cell-padding-y px-3">{pos.qty.toFixed(4)}</td>
+                          <td className="py-cell-padding-y px-3">{pos.avgPrice.toFixed(2)}</td>
+                          <td className="py-cell-padding-y px-3">{markPrice.toFixed(2)}</td>
+                          <td className={`py-cell-padding-y px-3 text-right ${pnlColor}`}>
+                            {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)} ({pnl >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%)
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {(!account || Object.keys(account.positions).length === 0) && (
+                      <tr>
+                        <td colSpan={6} className="text-center py-8 text-on-surface-variant">No Open Positions</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              ) : (
+                <table className="w-full text-left border-collapse">
+                  <thead className="sticky top-0 bg-surface-container-high z-10">
+                    <tr className="font-label-caps text-label-caps text-on-surface-variant border-b border-outline-variant">
+                      <th className="py-2 px-3 font-medium">TIME</th>
+                      <th className="py-2 px-3 font-medium">SYMBOL</th>
+                      <th className="py-2 px-3 font-medium">SIDE</th>
+                      <th className="py-2 px-3 font-medium">PRICE</th>
+                      <th className="py-2 px-3 font-medium">QUANTITY</th>
+                      <th className="py-2 px-3 font-medium text-right">STATUS</th>
+                    </tr>
+                  </thead>
+                  <tbody className="font-data-mono-sm text-data-mono-sm">
+                    {account && account.order_history && account.order_history.map((order, i) => (
+                      <tr key={i} className="border-b border-outline-variant/30 hover:bg-surface-bright transition-colors">
+                        <td className="py-cell-padding-y px-3 text-on-surface-variant">{new Date(order.timestamp).toLocaleTimeString()}</td>
+                        <td className="py-cell-padding-y px-3 text-on-surface">{order.symbol}</td>
+                        <td className={`py-cell-padding-y px-3 ${order.action === 'BUY' ? 'text-secondary' : 'text-on-tertiary-container'}`}>{order.action}</td>
+                        <td className="py-cell-padding-y px-3">{order.price.toFixed(2)}</td>
+                        <td className="py-cell-padding-y px-3">{order.quantity.toFixed(4)}</td>
+                        <td className="py-cell-padding-y px-3 text-right text-secondary">{order.status}</td>
+                      </tr>
+                    ))}
+                    {(!account || !account.order_history || account.order_history.length === 0) && (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-on-surface-variant font-label-caps">No order history found</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         </section>
 
         {/* Right Sidebar Dock (Order Entry) */}
         <aside className="w-full md:w-80 flex flex-col bg-surface-container border-l border-outline-variant" style={{ overflowY: "auto" }}>
-          <PaperTrading onOrderSuccess={refreshAccount} activeTicker={activeTicker} />
+          <PaperTrading onOrderSuccess={refreshAccount} activeTicker={activeTicker} markPrice={markPrice} />
         </aside>
       </main>
     </div>

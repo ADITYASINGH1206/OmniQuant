@@ -4,12 +4,20 @@ import axios from 'axios';
 interface PaperTradingProps {
   onOrderSuccess: () => void;
   activeTicker: string;
+  markPrice?: number;
 }
 
-export const PaperTrading: React.FC<PaperTradingProps> = ({ onOrderSuccess, activeTicker }) => {
+export const PaperTrading: React.FC<PaperTradingProps> = ({ onOrderSuccess, activeTicker, markPrice = 0 }) => {
   const [side, setSide] = useState<'BUY' | 'SELL'>('BUY');
   const [orderType, setOrderType] = useState<'LIMIT' | 'MARKET'>('LIMIT');
-  const [price, setPrice] = useState<string>('42912.44');
+  const [price, setPrice] = useState<string>('');
+
+  // Update default price when markPrice changes if input is empty or in MARKET mode
+  React.useEffect(() => {
+    if (markPrice > 0 && (price === '' || orderType === 'MARKET')) {
+      setPrice(markPrice.toFixed(2));
+    }
+  }, [markPrice, orderType]);
   const [quantity, setQuantity] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);

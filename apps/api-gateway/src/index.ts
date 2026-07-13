@@ -68,10 +68,21 @@ interface Position {
 }
 
 // In-Memory Mock Broker State
+export interface OrderLog {
+  id: string;
+  timestamp: number;
+  symbol: string;
+  action: 'BUY' | 'SELL';
+  quantity: number;
+  price: number;
+  status: 'FILLED' | 'REJECTED';
+}
+
 let account = {
   cash_balance: 100000,
   realized_pnl: 0,
-  positions: {} as Record<string, Position>
+  positions: {} as Record<string, Position>,
+  order_history: [] as OrderLog[]
 };
 
 app.get('/api/paper/account', (req: Request, res: Response) => {
@@ -83,6 +94,16 @@ app.post('/api/paper/order', (req: Request, res: Response) => {
   const qty = Number(quantity);
   const prc = Number(price);
   const cost = qty * prc;
+  
+  const order: OrderLog = {
+    id: Math.random().toString(36).substring(7),
+    timestamp: Date.now(),
+    symbol,
+    action,
+    quantity: qty,
+    price: prc,
+    status: 'FILLED'
+  };
 
   if (action === 'BUY') {
     if (account.cash_balance >= cost) {
@@ -94,6 +115,7 @@ app.post('/api/paper/order', (req: Request, res: Response) => {
       // Update average entry price based on weighted average
       pos.avgPrice = ((pos.avgPrice * pos.qty) + cost) / (pos.qty + qty);
       pos.qty += qty;
+      account.order_history.unshift(order); // Store at beginning
       return res.json({ status: 'success', account });
     }
     return res.status(400).json({ error: 'Insufficient funds' });
@@ -109,6 +131,7 @@ app.post('/api/paper/order', (req: Request, res: Response) => {
       if (pos.qty === 0) {
         delete account.positions[symbol];
       }
+      account.order_history.unshift(order); // Store at beginning
       return res.json({ status: 'success', account });
     }
     return res.status(400).json({ error: 'Insufficient position' });

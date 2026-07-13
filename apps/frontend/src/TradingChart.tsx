@@ -2,13 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, LineSeries, HistogramSeries, CrosshairMode } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi } from 'lightweight-charts';
 import { useMarketData } from './useMarketData';
-import { useMultiMarketStream } from './hooks/useMultiMarketStream';
 import type { Candle } from './useMarketData';
 
-export const TradingChart: React.FC<{ activeTicker?: string, activeTimeframe?: string }> = ({ activeTicker = 'BTC/USDT', activeTimeframe = '1m' }) => {
+export const TradingChart: React.FC<{ activeTicker?: string, activeTimeframe?: string, latestCandle?: Candle | null }> = ({ activeTicker = 'BTC/USDT', activeTimeframe = '1m', latestCandle = null }) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
-    const data = useMarketData(activeTicker);
-    const { latestCandle } = useMultiMarketStream(activeTicker, activeTimeframe);
+    const data = useMarketData(activeTicker, activeTimeframe);
     
     // Indicator states
     const [showShortSMA, setShowShortSMA] = useState(false);
